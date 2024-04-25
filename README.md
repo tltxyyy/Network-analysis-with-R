@@ -14,11 +14,8 @@ As one can see, the data format resembles that on Javascript and needs to be fir
 
 
 Using regular expressions, I managed to arrive at the table view we need:
-<img width="500" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/71b19a7a-1586-44b2-b0ff-655a793ff2d8">
-
-
-
-<img width="897" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/f6257353-97ce-4249-9322-f2ddef6eab6f">
+<img width="500" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/f6257353-97ce-4249-9322-f2ddef6eab6f">
+<img width="800" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/71b19a7a-1586-44b2-b0ff-655a793ff2d8">
 
 
 With the data now in the view we want to see, we can run compute the respective centrality metrics to conduct analysis.
