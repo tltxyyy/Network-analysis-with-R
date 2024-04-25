@@ -55,3 +55,6 @@ Similarly, we like to pay attention to those products that consistently appear o
 <img width="530" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/490f39ad-c785-4582-8d62-de090969e25a">
 
 Furthermore, to ensure that our analysis is correct, we also looked at the top 100 for betweenness centrality, closeness centrality, and page rank centrality. The more times a product id appears, the more we can pinpoint the exact product we want to spend resources on. 
+
+
+** Project was done in 2022.
