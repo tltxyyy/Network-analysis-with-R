@@ -1,0 +1,435 @@
+---
+title: "Network Analysis"
+date: "1/20/2022"
+output: html_document
+---
+
+**Please Read:**
+As the running of the centrality metrics and the nodes data cleaning codes take quite some time to be completed, the data frames storing all the centrality metrics and nodes details have been saved as CSVs beforehand. As such, some of the chunks are marked "don't run", and are only left in the file to show how the CSVs were prepared.  
+**Please only run the chunks which are marked "run".**
+
+
+Packages:
+```{r 1 Setup: run, warning=FALSE}
+library(igraph)
+library(RColorBrewer)
+library(readr)
+library(tidyverse)
+library(data.table)
+library(plotly)
+```
+
+```{r 2 Rearranging nodes data: don't run}
+# Clean and rearrange the nodes data
+
+# Read the nodes data
+amazonmeta <- read.table("amazon-meta.txt.gz",sep = ",",quote = "")
+
+# Create a duplicate
+ameta <- amazonmeta
+colnames(ameta) <- "test"
+
+# Get respective rows with ids to perform group by
+ids <- ameta[str_detect(ameta$test, "Id:   "), ]
+id <- as.integer(gsub("Id\\:.*\\s", "", ids)) # extract only the ids
+ids_df <- data.frame(ids, id)
+
+ameta$id <- NA  # create a new column
+ameta[str_detect(ameta$test, "Id:   "), ] <- ids_df$id # copy the ids over
+ameta1 <- ameta %>% fill(id) # perform a fill down
+
+# Group by id and create a "details" column to store all the relevant details with regards to the respective id 
+a2 <- ameta1 %>% group_by(id) %>% summarise(details = paste(test, collapse = ","))
+a3 <- a2[1:nrow(a2)-1, ] # remove the last row with total data size
+
+# Extract all the relevant details which may be needed for analysis
+a3$ASIN <- sub("^.*ASIN:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$title <- sub("^.*title:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$group <- sub("^.*group:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$sales.rank <- sub("^.*salesrank:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$total.reviews <- sub("^.*reviews: total:\\s(.*?)downloaded.*$", "\\1", a3$details)
+a3$similar <- sub("^.*similar:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$categories <- sub("^.*categories:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$reviews <- sub("^.*reviews:\\s(.*?)\\,.*$", "\\1", a3$details)
+a3$avg.rating <- sub("^.*avg rating:", "\\1", a3$reviews)
+a3[str_detect(a3$details, "discontinued product"), c("title", "group","sales.rank", "total.reviews", "similar", "categories", "reviews", "avg.rating")] <- NA
+
+ainfo <- a3[,c("id", "ASIN", "title", "group", "categories", "sales.rank", "avg.rating", "total.reviews", "details")]
+
+# Change any anomalies that occured during the extraction process
+ainfo[508629, "group"] <- "Book"
+
+```
+
+```{r 3 Read edges files: don't run}
+# read the edges data
+
+a0302 <- read.table("amazon0302.txt.gz")
+a0312 <- read.table("amazon0312.txt.gz")
+a0505 <- read.table("amazon0505.txt.gz")
+a0601 <- read.table("amazon0601.txt.gz")
+```
+
+```{r 4 Network metrics closeness & betweenness: don't run}
+# This chunk computes the closeness and betweenness centrality for each of the 4 dates
+# These codes have already been run and saved as CSVs: refer to chunk 6
+
+  # 0302
+G1 = graph.data.frame(a0302, directed=T)
+
+comp <- components(G1)
+in.max.comp = (comp$membership == 1)
+sg1 = induced_subgraph(G1, in.max.comp)
+
+# Metric 2: Closeness Centrality
+a0302_cl = closeness(sg1)
+summary(a0302_cl)
+
+# Metric 3: Betweenness Centrality
+a0302_bn = betweenness(G1)
+summary(a0302_bn)
+
+
+  #0312
+G2 = graph.data.frame(a0312, directed=T)
+
+comp <- components(G2)
+in.max.comp = (comp$membership == 1)
+sg2 = induced_subgraph(G2, in.max.comp)
+
+# Metric 2: Closeness Centrality
+a0312_cl = closeness(sg2)
+summary(a0312_cl)
+
+# Metric 3: Betweenness Centrality
+a0312_bn = betweenness(G2)
+summary(a0312_bn)
+
+  # 0505
+G3 = graph.data.frame(a0505, directed=T)
+
+comp <- components(G3)
+in.max.comp = (comp$membership == 1)
+sg3 = induced_subgraph(G3, in.max.comp)
+
+# Metric 2: Closeness Centrality
+a0505_cl = closeness(sg1)
+summary(a0505_cl)
+
+# Metric 3: Betweenness Centrality
+a0505_bn = betweenness(G3)
+summary(a0505_bn)
+
+
+  # 0601
+G4 = graph.data.frame(a0601, directed=T)
+
+comp <- components(G4)
+in.max.comp = (comp$membership == 1)
+sg4 = induced_subgraph(G4, in.max.comp)
+
+# Metric 2: Closeness Centrality
+a0601_cl = closeness(sg4)
+summary(a0601_cl)
+
+# Metric 3: Betweenness Centrality
+a0601_bn = betweenness(G4)
+summary(a0601_bn)
+
+```
+
+```{r 5 Network metrics degree & page rank: don't run}
+# This chunk computes the degree and page rank centrality for each of the 4 dates
+# These codes have already been run and saved as CSVs: refer to chunk 6
+
+  # 0302
+G1 = graph.data.frame(a0302, directed=T)
+
+# Metric 1: Degree Centrality
+comp <- components(G1)
+in.max.comp = (comp$membership == 1)
+sg1 = induced_subgraph(G1, in.max.comp)
+a0302_dg = degree(sg1)
+
+a0302_dg = as.data.frame(a0302_dg)
+a0302_dg <- a0302_dg %>% rownames_to_column(var="id")
+a0302_dg$id <- as.integer(a0302_dg$id)
+
+# Metric 4: PageRank
+a0302_pr = page.rank(G1)$vector
+
+a0302_pr = as.data.frame(a0302_pr)
+a0302_pr <- a0302_pr %>% rownames_to_column(var="id")
+a0302_pr$id <- as.integer(a0302_pr$id)
+
+  #0312
+G2 = graph.data.frame(a0312, directed=T)
+
+# Metric 1: Degree Centrality
+comp <- components(G2)
+in.max.comp = (comp$membership == 1)
+sg2 = induced_subgraph(G2, in.max.comp)
+a0312_dg = degree(sg2)
+
+a0312_dg = as.data.frame(a0312_dg)
+a0312_dg <- a0312_dg %>% rownames_to_column(var="id")
+a0312_dg$id <- as.integer(a0312_dg$id)
+
+# Metric 4: PageRank
+a0312_pr = page.rank(G2)$vector
+
+a0312_pr = as.data.frame(a0312_pr)
+a0312_pr <- a0312_pr %>% rownames_to_column(var="id")
+a0312_pr$id <- as.integer(a0312_pr$id)
+
+  # 0505
+G3 = graph.data.frame(a0505, directed=T)
+
+# Metric 1: Degree Centrality
+comp <- components(G3)
+in.max.comp = (comp$membership == 1)
+sg3 = induced_subgraph(G3, in.max.comp)
+a0505_dg = degree(sg3)
+
+a0505_dg = as.data.frame(a0505_dg)
+a0505_dg <- a0505_dg %>% rownames_to_column(var="id")
+a0505_dg$id <- as.integer(a0505_dg$id)
+
+# Metric 4: PageRank
+a0505_pr = page.rank(G3)$vector
+
+a0505_pr = as.data.frame(a0505_pr)
+a0505_pr <- a0505_pr %>% rownames_to_column(var="id")
+a0505_pr$id <- as.integer(a0505_pr$id)
+
+  # 0601
+G4 = graph.data.frame(a0601, directed=T)
+
+# Metric 1: Degree Centrality
+comp <- components(G4)
+in.max.comp = (comp$membership == 1)
+sg4 = induced_subgraph(G4, in.max.comp)
+a0601_dg = degree(sg4)
+
+a0601_dg = as.data.frame(a0601_dg)
+a0601_dg <- a0601_dg %>% rownames_to_column(var="id")
+a0601_dg$id <- as.integer(a0601_dg$id)
+
+# Metric 4: PageRank
+a0601_pr = page.rank(G4)$vector
+
+a0601_pr = as.data.frame(a0601_pr)
+a0601_pr <- a0601_pr %>% rownames_to_column(var="id")
+a0601_pr$id <- as.integer(a0601_pr$id)
+
+```
+
+```{r 6 Pre-saved data: run}
+# All the centrality metrics data are pre-saved to allow faster loading of variables for each R session
+
+a0302_cl <- read.csv("a0302_closeness_directed.csv")
+a0302_bn <- read.csv("a0302_betweenness_directed.csv")
+a0302_dg <- read.csv("a0302_degree_directed.csv")
+a0302_pr <- read.csv("a0302_pagerank_directed.csv")
+
+a0312_cl <- read.csv("a0312_closeness_directed.csv")
+a0312_bn <- read.csv("a0312_betweenness_directed.csv")
+a0312_dg <- read.csv("a0312_degree_directed.csv")
+a0312_pr <- read.csv("a0312_pagerank_directed.csv")
+
+a0505_cl <- read.csv("a0505_closeness_directed.csv")
+a0505_bn <- read.csv("a0505_betweenness_directed.csv")
+a0505_dg <- read.csv("a0505_degree_directed.csv")
+a0505_pr <- read.csv("a0505_pagerank_directed.csv")
+
+a0601_cl <- read.csv("a0601_closeness_directed.csv")
+a0601_bn <- read.csv("a0601_betweenness_directed.csv")
+a0601_dg <- read.csv("a0601_degree_directed.csv")
+a0601_pr <- read.csv("a0601_pagerank_directed.csv")
+
+ainfo <- read.csv("ainfo.csv")
+```
+
+```{r 7 Check category groups: run}
+# Check the category groups
+unique(ainfo[["group"]])
+
+# Total size of miscellaneous groups: 20
+misc_size <- ainfo %>% filter(group != "Book" & group != "Music" & group != "DVD" & group != "Video") %>% nrow(.)
+paste0("The total records in miscellaneous groups (Toy, Video Games, Software, Baby Product, CE, Sports) are ", misc_size,".")
+
+# The total size of groups that are in Toy, Video Games, Software, Baby Product, CE, Sports, only make up 20 out of the 548552 record. As such, these groups will not be included in the computation of top 100 products per category group.
+
+```
+
+``` {r 8 Top 100 per category functions: run}
+# Functions to find the top 100 products based on each category
+
+# list of all the centrality dataframes
+dfs <- list(a0302_dg, a0302_pr, a0302_cl, a0302_bn, a0312_dg, a0312_pr, a0312_cl, a0312_bn, a0505_dg, a0505_pr, a0505_cl, a0505_bn, a0601_dg, a0601_pr, a0601_cl, a0601_bn)
+
+# Function to rename columns
+changeNames <- function(dataframes) {
+  colnames(dataframes) <- c("id", "centrality")
+  return(dataframes)
+}
+
+# Function to join centrality data with nodes data
+mergeDf <- function(dataframes) {
+  dataframes <- merge(dataframes, ainfo)
+  return(dataframes)
+}
+
+# Function to get the top 100 products based on each category group and date
+### As mentioned, only the main category groups, Books, Music, DVD, Video will be included in the computation of top 100 per category per centrality metric.
+
+# note that as "with_ties" are set to FALSE, the function will only return max 100 products
+top100 <- function(dataframes) {
+  dataframes_top100 <- dataframes %>% group_by(group) %>% slice_max(order_by = centrality, n =100, with_ties = F)%>% filter(group == "Book" | group == "Music" | group == "DVD" | group == "Video")
+  
+  return(dataframes_top100)
+}
+
+# Apply function to centrality dataframe list
+dfs <- lapply(dfs, changeNames)
+dfs_merged <- lapply(dfs, mergeDf)
+dfs_top100 <- lapply(dfs_merged, top100)
+
+# Assign the dataframes to its respective variable name
+  # to identify the records by the centrality metric and date
+dg <- "dg"
+pr <- "pr"
+cl <- "cl"
+bn <- "bn"
+date1 <- "0302"
+date2 <- "0312"
+date3 <- "0505"
+date4 <- "0601"
+
+top_a0302_dg<- cbind(dfs_top100[[1]], centrality.type=dg, date=date1)
+top_a0302_pr<- cbind(dfs_top100[[2]], centrality.type=pr, date=date1)
+top_a0302_cl<- cbind(dfs_top100[[3]], centrality.type=cl, date=date1)
+top_a0302_bn<- cbind(dfs_top100[[4]], centrality.type=bn, date=date1)
+top_a0312_dg<- cbind(dfs_top100[[5]], centrality.type=dg, date=date2)
+top_a0312_pr<- cbind(dfs_top100[[6]], centrality.type=pr, date=date2)
+top_a0312_cl<- cbind(dfs_top100[[7]], centrality.type=cl, date=date2)
+top_a0312_bn<- cbind(dfs_top100[[8]], centrality.type=bn, date=date2)
+top_a0505_dg<- cbind(dfs_top100[[9]], centrality.type=dg, date=date3)
+top_a0505_pr<- cbind(dfs_top100[[10]], centrality.type=pr, date=date3)
+top_a0505_cl<- cbind(dfs_top100[[11]], centrality.type=cl, date=date3)
+top_a0505_bn<- cbind(dfs_top100[[12]], centrality.type=bn, date=date3)
+top_a0601_dg<- cbind(dfs_top100[[13]], centrality.type=dg, date=date4)
+top_a0601_pr<- cbind(dfs_top100[[14]], centrality.type=pr, date=date4)
+top_a0601_cl<- cbind(dfs_top100[[15]], centrality.type=cl, date=date4)
+top_a0601_bn<- cbind(dfs_top100[[16]], centrality.type=bn, date=date4)
+
+```
+
+```{r Comparison by Centrality Metrics: run}
+
+  # different metric same day
+
+#302
+x0 <- data.frame(ids = c(top_a0302_dg$id, top_a0302_bn$id, top_a0302_cl$id, top_a0302_pr$id))
+dups_id0 <- x0[duplicated(x0),]
+
+compare302 <- bind_rows(top_a0302_dg, top_a0302_bn, top_a0302_cl, top_a0302_pr)
+regular_top302 <- compare302[compare302$id %in% dups_id0, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_top302 <- regular_top302 %>% arrange(group, id)
+
+
+#312
+x1 <- data.frame(ids = c(top_a0312_dg$id, top_a0312_bn$id, top_a0312_cl$id, top_a0312_pr$id))
+dups_id1 <- x1[duplicated(x1),]
+
+compare312 <- bind_rows(top_a0312_dg, top_a0312_bn, top_a0312_cl, top_a0312_pr)
+regular_top312 <- compare312[compare312$id %in% dups_id1, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_top312 <- regular_top312 %>% arrange(group, id)
+
+
+#505
+x2 <- data.frame(ids = c(top_a0505_dg$id, top_a0505_bn$id, top_a0505_cl$id, top_a0505_pr$id))
+dups_id2 <- x2[duplicated(x2),]
+
+compare505 <- bind_rows(top_a0505_dg, top_a0505_bn, top_a0505_cl, top_a0505_pr)
+regular_top505 <- compare505[compare505$id %in% dups_id2, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_top505 <- regular_top505 %>% arrange(group, id)
+
+
+#601
+x3 <- data.frame(ids = c(top_a0601_dg$id, top_a0601_bn$id, top_a0601_cl$id, top_a0601_pr$id))
+dups_id3 <- x3[duplicated(x3),]
+
+compare601 <- bind_rows(top_a0601_dg, top_a0601_bn, top_a0601_cl, top_a0601_pr)
+regular_top601 <- compare601[compare601$id %in% dups_id3, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_top601 <- regular_top601 %>% arrange(group, id)
+
+
+# analysis included in report
+  # total number of products that appeared more than once in the top 100 based on category
+length(unique(regular_top302$id))
+length(unique(regular_top312$id))
+length(unique(regular_top505$id))
+length(unique(regular_top601$id))
+
+  # total number of duplicated products for each of the metrics
+table(regular_top302$centrality.type)
+table(regular_top312$centrality.type)
+table(regular_top505$centrality.type)
+table(regular_top601$centrality.type)
+
+```
+
+```{r Comparison by dates}
+  # same metric different day
+
+#dg
+y0 <- data.frame(ids = c(top_a0302_dg$id, top_a0312_dg$id, top_a0505_dg$id, top_a0601_dg$id))
+dups_id_y0 <- y0[duplicated(y0),]
+
+comparedg <- bind_rows(top_a0302_dg, top_a0312_dg, top_a0505_dg, top_a0601_dg)
+regular_dg <- comparedg[comparedg$id %in% dups_id_y0, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_dg <- regular_dg %>% arrange(group, id)
+
+
+#bn
+y1 <- data.frame(ids = c(top_a0302_bn$id, top_a0312_bn$id, top_a0505_bn$id, top_a0601_bn$id))
+dups_id_y1 <- y1[duplicated(y1),]
+
+comparebn <- bind_rows(top_a0302_bn, top_a0312_bn, top_a0505_bn, top_a0601_bn)
+regular_bn <- comparebn[comparebn$id %in% dups_id_y1, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_bn <- regular_bn %>% arrange(group, id)
+
+#cl
+y2 <- data.frame(ids = c(top_a0302_cl$id, top_a0312_cl$id, top_a0505_cl$id, top_a0601_cl$id))
+dups_id_y2 <- y2[duplicated(y2),]
+
+comparecl <- bind_rows(top_a0302_cl, top_a0312_cl, top_a0505_cl, top_a0601_cl)
+regular_cl <- comparecl[comparecl$id %in% dups_id_y2, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_cl <- regular_cl %>% arrange(group, id)
+
+#pr
+y3 <- data.frame(ids = c(top_a0302_pr$id, top_a0312_pr$id, top_a0505_pr$id, top_a0601_pr$id))
+dups_id_y3 <- y3[duplicated(y3),]
+
+comparepr <- bind_rows(top_a0302_pr, top_a0312_pr, top_a0505_pr, top_a0601_pr)
+regular_pr <- comparepr[comparepr$id %in% dups_id_y3, ] %>% arrange(id)
+
+# top for at least 2 or more metrics on the same day: there are duplicates
+regular_pr <- regular_pr %>% arrange(group, id)
+
+```
