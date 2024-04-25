@@ -14,7 +14,7 @@ As one can see, the data format resembles that on Javascript and needs to be fir
 
 
 Using regular expressions, I managed to arrive at the table view we need:
-<img width="1069" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/71b19a7a-1586-44b2-b0ff-655a793ff2d8">
+<img width="500" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/71b19a7a-1586-44b2-b0ff-655a793ff2d8">
 
 
 
