@@ -9,7 +9,7 @@
 
 ## Data Cleaning and Manipulation
 ### amazon-meta data
-As one can see, the data format of amazon-meta resembles that of noSQL and needs to be firstly processed and reshaped to conduct any form on analysis.
+As one can see, the data format of amazon-meta resembles that of noSQL and needs to be firstly processed and reshaped into a relational data table to conduct any form on analysis.
 
 <img width="715" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/df036e60-0a12-437c-a22f-604f4a34816b">
 <img width="284" alt="image" src="https://github.com/tltxyyy/page-rank/assets/69724535/94c7ea7c-a969-43b7-ab48-2a705a0d4178">
